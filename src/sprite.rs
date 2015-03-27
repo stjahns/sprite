@@ -34,12 +34,17 @@ pub struct Sprite<I: ImageSize> {
     children: Vec<Sprite<I>>,
     children_index: HashMap<Uuid, usize>,
 
+    src_rect: [i32; 4],
+
     texture: Rc<I>,
 }
 
 impl<I: ImageSize> Sprite<I> {
     /// Crate sprite from a texture
     pub fn from_texture(texture: Rc<I>) -> Sprite<I> {
+
+        let (w, h) = texture.get_size();
+
         Sprite {
             id: Uuid::new_v4(),
 
@@ -57,6 +62,7 @@ impl<I: ImageSize> Sprite<I> {
             opacity: 1.0,
 
             texture: texture,
+            src_rect: [0, 0, w as i32, h as i32],
 
             children: Vec::new(),
             children_index: HashMap::new(),
@@ -193,6 +199,12 @@ impl<I: ImageSize> Sprite<I> {
         self.texture = texture;
     }
 
+    /// Set the source region of the texture for the sprite,
+    #[inline(always)]
+    pub fn set_src_rect(&mut self, src_rect: [i32; 4]) {
+        self.src_rect = src_rect;
+    }
+
     /// Add a sprite as the child of this sprite, return the added sprite's id.
     pub fn add_child(&mut self, sprite: Sprite<I>) -> Uuid {
         let id = sprite.id();
@@ -264,9 +276,8 @@ impl<I: ImageSize> Sprite<I> {
             return;
         }
 
-        let (w, h) = self.texture.get_size();
-        let w = w as f64;
-        let h = h as f64;
+        let w = (self.src_rect[2] - self.src_rect[0]) as f64;
+        let h = (self.src_rect[3] - self.src_rect[1]) as f64;
         let anchor = [self.anchor[0] * w, self.anchor[1] * h];
 
         let transformed = t.trans(self.position[0], self.position[1])
@@ -291,6 +302,7 @@ impl<I: ImageSize> Sprite<I> {
         graphics::Image::new()
             .set(Color([1.0, 1.0, 1.0, self.opacity]))
             .set(Rect([-anchor[0], -anchor[1], w, h]))
+            .set(SrcRect(self.src_rect))
             .draw(&*self.texture, draw_state, model, b);
 
         // for debug: anchor point
